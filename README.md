@@ -12,8 +12,8 @@ echo "system-features = nixos-test benchmark big-parallel kvm" >> /etc/nix/nix.c
 reboot
 
 # build image
-nix --extra-experimental-features nix-command --extra-experimental-features flakes build .#packages.aarch64-linux.img
-cp $(readlink result)/nixos.img /tmp/lima/nixos-aarch64.img
+nix --extra-experimental-features 'nix-command flakes' build .#packages.aarch64-linux.img
+cp result/nixos.img /tmp/lima/nixos-aarch64.img
 ```
 
 On your mac:
