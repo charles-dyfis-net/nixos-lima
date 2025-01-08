@@ -5,12 +5,12 @@ let
     LIMA_CIDATA_DEV = "/dev/disk/by-label/cidata";
 
     script = ''
-    echo "attempting to fetch configuration from LIMA user data..."
+    echo "attempting to fetch configuration from LIMA user data..." >&2
 
     if [ -f ${LIMA_CIDATA_MNT}/lima.env ]; then
-        echo "storage exists";
+        echo "storage exists" >&2
     else
-        echo "storage not exists";
+        echo "storage not exists" >&2
         exit 2
     fi
     # ripped from https://github.com/lima-vm/alpine-lima/blob/main/lima-init.sh
@@ -26,7 +26,7 @@ let
     usermod -a -G wheel $LIMA_CIDATA_USER
     usermod -a -G users $LIMA_CIDATA_USER
 
-    echo "fix symlink for /bin/bash"
+    echo "fix symlink for /bin/bash" >&2
     ln -fs /run/current-system/sw/bin/bash /bin/bash
 
     # Create authorized_keys
