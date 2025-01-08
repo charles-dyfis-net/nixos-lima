@@ -32,7 +32,6 @@
           specialArgs = attrs;
           modules = [
             ./lima.nix
-            ./user-config.nix
           ];
         };
 

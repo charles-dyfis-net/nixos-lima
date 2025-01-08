@@ -9,12 +9,6 @@
 
     # ssh
     services.openssh.enable = true;
-    services.openssh.permitRootLogin = "yes";
-    users.users.root.password = "nixos";
-
-    security = {
-        sudo.wheelNeedsPassword = false;
-    };
 
     # system mounts
     boot.loader.grub = {
@@ -35,9 +29,4 @@
 
     # misc
     boot.kernelPackages = pkgs.linuxPackages_latest;
-
-    # pkgs
-    environment.systemPackages = with pkgs; [
-        vim
-    ];
 }
