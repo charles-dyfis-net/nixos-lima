@@ -1,4 +1,5 @@
 #!/bin/sh
+# originally based on a very old version of https://github.com/lima-vm/alpine-lima/blob/main/lima-init.sh
 
 LIMA_CIDATA_MNT=@lima_cidata_mnt@
 LIMA_CIDATA_DEV=@lima_cidata_dev@
@@ -11,8 +12,10 @@ else
     echo "storage not exists" >&2
     exit 2
 fi
-# ripped from https://github.com/lima-vm/alpine-lima/blob/main/lima-init.sh
-. "${LIMA_CIDATA_MNT}"/lima.env
+
+while IFS== read -r key value; do
+    printf -v "$key" %s "$value" && export "$key"
+done <"${LIMA_CIDATA_MNT}"/lima.env
 
 export PATH=@deps_path@:$PATH
 
@@ -24,46 +27,34 @@ id -u "$LIMA_CIDATA_USER" >/dev/null 2>&1 || useradd --home-dir "$LIMA_CIDATA_HO
 usermod -a -G wheel $LIMA_CIDATA_USER
 usermod -a -G users $LIMA_CIDATA_USER
 
+userdata_json=$(yq -o json <"${LIMA_CIDATA_MNT}"/user-data)
+
 echo "fix symlink for /bin/bash" >&2
 ln -fs /run/current-system/sw/bin/bash /bin/bash
 
 # Create authorized_keys
 LIMA_CIDATA_SSHDIR="$LIMA_CIDATA_HOMEDIR"/.ssh
 mkdir -p -m 700 "$LIMA_CIDATA_SSHDIR"
-awk '/ssh-authorized-keys/ {flag=1; next} /^ *$/ {flag=0} flag {sub(/^ +- /, ""); gsub("\"", ""); print $0}' \
-"${LIMA_CIDATA_MNT}"/user-data >"$LIMA_CIDATA_SSHDIR"/authorized_keys
+jq -r --arg username "$LIMA_CIDATA_USER" \
+    '.users[] | select(.name == $username) | .["ssh-authorized-keys"][]' \
+    <<<"$userdata_json" >"$LIMA_CIDATA_SSHDIR"/authorized_keys
 LIMA_CIDATA_GID=$(id -g "$LIMA_CIDATA_USER")
 chown -R "$LIMA_CIDATA_UID:$LIMA_CIDATA_GID" "$LIMA_CIDATA_SSHDIR"
 chmod 600 "$LIMA_CIDATA_SSHDIR"/authorized_keys
 
+# FIXME: Let's please not.
 LIMA_SSH_KEYS_CONF=/etc/ssh/authorized_keys.d
 mkdir -p -m 700 "$LIMA_SSH_KEYS_CONF"
 cp "$LIMA_CIDATA_SSHDIR"/authorized_keys "$LIMA_SSH_KEYS_CONF/$LIMA_CIDATA_USER"
 
 # Add mounts to /etc/fstab
-sed -i '/#LIMA-START/,/#LIMA-END/d' /etc/fstab
-echo "#LIMA-START" >> /etc/fstab
-awk -f- "${LIMA_CIDATA_MNT}"/user-data <<'EOF' >> /etc/fstab
-/^mounts:/ {
-    flag = 1
-    next
-}
-/^ *$/ {
-    flag = 0
-}
-flag {
-    sub(/^ *- \[/, "")
-    sub(/"?\] *$/, "")
-    gsub("\"?, \"?", "\t")
-    print $0
-}
-EOF
-echo "#LIMA-END" >> /etc/fstab
+# ...note that on modern nixos this is a link to a store location, and we're being Bad People by rewriting it.
+jq -r '"#LIMA_START", (.mounts[] | @tsv), "#LIMA_END"' <<<"$userdata_json" >/etc/fstab.local
+mv /etc/fstab /etc/fstab.orig
+cat /etc/fstab.orig /etc/fstab.local >/etc/fstab
 
-systemctl daemon-reload
+systemctl daemon-reload # DANGER WILL ROBINSON: Doing this from a running service invites race conditions
 systemctl restart local-fs.target
-
-#echo "$LIMA_CIDATA_SLIRP_GATEWAY host.lima.internal" >> /etc/hosts
 
 cp "${LIMA_CIDATA_MNT}"/meta-data /run/lima-ssh-ready
 cp "${LIMA_CIDATA_MNT}"/meta-data /run/lima-boot-done

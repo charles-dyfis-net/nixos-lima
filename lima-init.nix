@@ -3,15 +3,14 @@
 let
     LIMA_CIDATA_MNT = "/mnt/lima-cidata";
     LIMA_CIDATA_DEV = "/dev/disk/by-label/cidata";
-    script = pkgs.substitute {
-        src = ./lima-init;
-        substitutions = [
-            "--replace" "#!/bin/sh" pkgs.runtimeShell
-            "--replace" "@lima_cidata_mnt@" LIMA_CIDATA_MNT
-            "--replace" "@lima_cidata_dev@" LIMA_CIDATA_DEV
-            "--replace" "@deps_path@" (pkgs.lib.makeBinPath [ pkgs.shadow pkgs.gawk pkgs.mount ])
-        ];
-    };
+    script = pkgs.runCommand "lima-init" { } ''
+        substitute ${./lima-init} "$out" \
+            "--replace-fail" "#!/bin/sh" "#!${pkgs.runtimeShell}" \
+            "--replace-fail" "@lima_cidata_mnt@" ${LIMA_CIDATA_MNT} \
+            "--replace-fail" "@lima_cidata_dev@" ${LIMA_CIDATA_DEV} \
+            "--replace-fail" "@deps_path@" ${pkgs.lib.makeBinPath [ pkgs.shadow pkgs.jq pkgs.yq-go pkgs.mount ]}
+        chmod +x "$out"
+    '';
 in {
     imports = [];
 

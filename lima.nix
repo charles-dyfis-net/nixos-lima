@@ -7,8 +7,11 @@
 
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-    # ssh
+    # ssh genuinely required: used for both automation and user sessions
     services.openssh.enable = true;
+
+    # genuinely required: lima-ssh-ready test uses sudo
+    security.sudo.wheelNeedsPassword = false;
 
     # system mounts
     boot.loader.grub = {
