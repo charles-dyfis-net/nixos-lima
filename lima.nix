@@ -42,7 +42,10 @@
     environment.systemPackages = with pkgs; [
         vim
         git
+        docker
     ];
+
+    virtualisation.docker.enable = true;
 
     system.stateVersion = "25.05";
 }
